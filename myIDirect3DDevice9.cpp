@@ -498,22 +498,22 @@ HRESULT myIDirect3DDevice9::MultiplyTransform(D3DTRANSFORMSTATETYPE State,CONST 
     return(m_pIDirect3DDevice9->MultiplyTransform(State,pMatrix));
 }
 
-HRESULT myIDirect3DDevice9::SetViewport(CONST D3DVIEWPORT9* pViewport)
+HRESULT myIDirect3DDevice9::SetViewport(CONST D3DVIEWPORT9* pm_Viewport)
 {
 #ifdef MYDIRECT3DDEVICE_DEBUGSTRINGS
-	OutputDebugString("myIDirect3DDevice9::SetViewport called!");
+	OutputDebugString("myIDirect3DDevice9::Setm_Viewport called!");
 #endif
 
-    return(m_pIDirect3DDevice9->SetViewport(pViewport));
+    return(m_pIDirect3DDevice9->SetViewport(pm_Viewport));
 }
 
-HRESULT myIDirect3DDevice9::GetViewport(D3DVIEWPORT9* pViewport)
+HRESULT myIDirect3DDevice9::GetViewport(D3DVIEWPORT9* pm_Viewport)
 {
 #ifdef MYDIRECT3DDEVICE_DEBUGSTRINGS
-	OutputDebugString("myIDirect3DDevice9::GetViewport called!");
+	OutputDebugString("myIDirect3DDevice9::Getm_Viewport called!");
 #endif
 
-    return(m_pIDirect3DDevice9->GetViewport(pViewport));
+    return(m_pIDirect3DDevice9->GetViewport(pm_Viewport));
 }
 
 HRESULT myIDirect3DDevice9::SetMaterial(CONST D3DMATERIAL9* pMaterial)
@@ -1156,27 +1156,74 @@ void myIDirect3DDevice9::ShowWeAreHere(void)
 	extern DWORD gl_LineOffset;
 
 	if(gl_LineOffset > 0){ //only put our marker if actually in HD3D mode and buffer size detected!
-		GetViewport(&Viewport);
-		D3DVIEWPORT9 old = Viewport;
-		D3DRECT recleft = {0,0,MARKER_SIZE,MARKER_SIZE};	
-		D3DRECT recright = {0,gl_LineOffset,MARKER_SIZE,gl_LineOffset+MARKER_SIZE};	
+		
+		
+		GetViewport(&m_Viewport);
+		D3DVIEWPORT9 old = m_Viewport;
+		D3DRECT recleft;
+		D3DRECT recright;
 
-		Viewport.X = recleft.x1;
-		Viewport.Y = recleft.y1;
-		Viewport.Width = recleft.x2-recleft.x1;
-		Viewport.Height = recleft.y2-recleft.y1;
-		SetViewport((const D3DVIEWPORT9 *) &Viewport);	
-		m_pIDirect3DDevice9->Clear(1, &recleft, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,255,255,255),0 ,0);
+		if(gl_Settings.MarkType == MARK_TESTPATTERN){ //DRAW THE TEST PATTERN
+			//The test pattern is just a checkerboard pattern.
+			DWORD numhor = m_Viewport.Width/CHECKERBOARD_RECTSIZE;
+			DWORD numver = m_Viewport.Height/CHECKERBOARD_RECTSIZE;
+			DWORD i,j;
+			//first, render a big white surface for the left eye.
+			MAKED3DRECT(recleft, 0, 0, m_Viewport.Width, m_Viewport.Height);
+			m_pIDirect3DDevice9->Clear(1, &recleft, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,255,255,255),0 ,0);
+			for(i=0; i<numver; i++)
+				for(j=(i&1); j<numhor; j+=2){
+					//now, render the checkerboard on the left eye too.
+					MAKED3DRECT(recleft, j*CHECKERBOARD_RECTSIZE, i*CHECKERBOARD_RECTSIZE, (j+1)*CHECKERBOARD_RECTSIZE, (i+1)*CHECKERBOARD_RECTSIZE);
+					m_pIDirect3DDevice9->Clear(1, &recleft, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,0,0,0),0 ,0);
+				}
+			//now, render a black surface for the right eye.
+			m_Viewport.Y = gl_LineOffset; //switch sides
+			SetViewport((const D3DVIEWPORT9 *) &m_Viewport);
+			MAKED3DRECT(recright, 0, gl_LineOffset, m_Viewport.Width, m_Viewport.Height+gl_LineOffset);
+			m_pIDirect3DDevice9->Clear(1, &recright, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,255,255,255),0 ,0);
+			
+		}
+		else{ //DRAW THE USUAL STUFF
+			DWORD x1, y1;
+			//find location of our rects
+			switch(gl_Settings.MarkType){
+			case MARK_TOPLEFT:
+				x1 = y1 = 0;
+				break;
+			case MARK_TOPRIGHT:
+				y1 = 0;
+				x1 = old.Width - gl_Settings.MarkSizeX;
+				break;
+			case MARK_BOTTOMLEFT:
+				x1 = 0;
+				y1 = old.Height - gl_Settings.MarkSizeY;
+				break;
+			case MARK_BOTTOMRIGHT:
+				x1 = old.Width - gl_Settings.MarkSizeX;
+				y1 = old.Height - gl_Settings.MarkSizeY;
+				break;
+			}
+			MAKED3DRECT(recleft, x1,y1,x1+gl_Settings.MarkSizeX,y1+gl_Settings.MarkSizeY);			
+			MAKED3DRECT(recright, recleft.x1,gl_LineOffset+recleft.y1,recleft.x2,gl_LineOffset+recleft.y2);	
 
-		Viewport.X = recright.x1;
-		Viewport.Y = recright.y1;
-		Viewport.Width = recright.x2-recright.x1;
-		Viewport.Height = recright.y2-recright.y1;
-		SetViewport((const D3DVIEWPORT9 *) &Viewport);
-		m_pIDirect3DDevice9->Clear(1, &recright, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,0,0,0),0 ,0);
+			m_Viewport.X = recleft.x1;
+			m_Viewport.Y = recleft.y1;
+			m_Viewport.Width = recleft.x2-recleft.x1;
+			m_Viewport.Height = recleft.y2-recleft.y1;
+			SetViewport((const D3DVIEWPORT9 *) &m_Viewport);	
+			m_pIDirect3DDevice9->Clear(1, &recleft, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,255,255,255),0 ,0);
 
-		Viewport = old;
-		SetViewport((const D3DVIEWPORT9 *) &Viewport);
+			m_Viewport.X = recright.x1;
+			m_Viewport.Y = recright.y1;
+			m_Viewport.Width = recright.x2-recright.x1;
+			m_Viewport.Height = recright.y2-recright.y1;
+			SetViewport((const D3DVIEWPORT9 *) &m_Viewport);
+			m_pIDirect3DDevice9->Clear(1, &recright, D3DCLEAR_TARGET, D3DCOLOR_ARGB(255,0,0,0),0 ,0);
+		}
+
+		m_Viewport = old;
+		SetViewport((const D3DVIEWPORT9 *) &m_Viewport);
 	}
 }
 

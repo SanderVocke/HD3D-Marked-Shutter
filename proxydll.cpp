@@ -1,6 +1,9 @@
 // proxydll.cpp
 #include "stdafx.h"
 #include "proxydll.h"
+#include "Shlwapi.h"
+#include <windows.h>
+#include <tchar.h>
 
 // global variables
 #pragma data_seg (".d3d9_shared")
@@ -12,6 +15,7 @@ myIDirect3D9*       gl_pmyIDirect3D9;
 HINSTANCE           gl_hOriginalDll;
 HINSTANCE           gl_hThisInstance;
 DWORD				gl_LineOffset;
+PROXYDLL_SETTINGS	gl_Settings;
 #pragma data_seg ()
 
 BOOL APIENTRY DllMain( HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
@@ -28,6 +32,7 @@ BOOL APIENTRY DllMain( HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
         case DLL_THREAD_ATTACH:  break;
 	    case DLL_THREAD_DETACH:  break;
 	}
+
     return TRUE;
 }
 
@@ -75,6 +80,24 @@ void InitInstance(HANDLE hModule)
 	
 	// Storing Instance handle into global var
 	gl_hThisInstance = (HINSTANCE)  hModule;
+
+	//set settings to standard
+	gl_Settings.MarkType = STD_MARKLOCATION;
+	gl_Settings.MarkSizeX = STD_MARKSIZEX;
+	gl_Settings.MarkSizeY = STD_MARKSIZEY;
+
+	//get any custom settings from INI file
+	TCHAR res[100];
+	TCHAR path[300];
+	if(GetCurrentDirectory(300, path)){
+		if(PathAppend(path, INI_FILE_SUBPATH)){
+			if(GetPrivateProfileString(_T("Marker"), _T("MarkType"), NULL, res, 100, path)){
+				for(int i=0; i<SIZEOF_ARRAY(MARKTYPES); i++){
+					if(!lstrcmpi(MARKTYPES[i], res)) gl_Settings.MarkType = i;
+				}
+			}
+		}
+	}
 }
 
 void LoadOriginalDll(void)

@@ -133,7 +133,8 @@ public:
 
 private:
     IDirect3DDevice9 *m_pIDirect3DDevice9;
-	D3DVIEWPORT9 Viewport;
+	D3DVIEWPORT9 m_Viewport;
+	D3DDISPLAYMODE m_DisplayMode;
     
 	// This is our test function
 	void ShowWeAreHere(void);
